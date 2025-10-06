@@ -21,15 +21,16 @@ jobs:
       with:
         python-version: '3.10'
 
-    # 步驟 3: 安裝需要的套件 (pandas)
+    # 步驟 3: 安裝需要的套件 (pandas 和 requests)
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas
+        pip install pandas requests
 
-    # 步驟 4: 執行您的兩個 Python 程式
-    # 這裡會依序執行 swer.py，然後再執行 swer2.py
+    # 步驟 4: 執行您的 Python 程式
+    # 這裡會依序執行 swer.py 和 swer2.py
     - name: Run scripts
       run: |
         python swer.py
         python swer2.py
+
