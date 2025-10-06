@@ -28,10 +28,7 @@ jobs:
         pip install pandas
 
     # 步驟 4: 執行您的 Python 程式
+    # 因為您的金鑰跟ID已經寫在 swer.py 裡面了，所以這裡不需要 env 設定
     - name: Run script
-      env:
-        # 這裡會把您剛剛設定的 Secrets 傳給程式
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      # 執行 swer.py 這個檔案
       run: python swer.py
+
