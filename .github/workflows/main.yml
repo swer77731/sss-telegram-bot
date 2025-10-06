@@ -33,6 +33,5 @@ jobs:
         # 這裡會把您剛剛設定的 Secrets 傳給程式
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      # 執行 etf_bot.py 這個檔案
-      run: python etf_bot.py
-5.  完成後，點擊右上角的 **`Commit changes`** 按鈕。
+      # 執行 swer.py 這個檔案
+      run: python swer.py
