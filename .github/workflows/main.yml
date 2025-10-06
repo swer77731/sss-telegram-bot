@@ -27,7 +27,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install pandas
 
-    # 步驟 4: 執行您的 Python 程式
-    # 因為您的金鑰跟ID已經寫在 swer.py 裡面了，所以這裡不需要 env 設定
-    - name: Run script
-      run: python swer.py
+    # 步驟 4: 執行您的兩個 Python 程式
+    # 這裡會依序執行 swer.py，然後再執行 swer2.py
+    - name: Run scripts
+      run: |
+        python swer.py
+        python swer2.py
