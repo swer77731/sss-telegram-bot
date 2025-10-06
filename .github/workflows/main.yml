@@ -31,4 +31,3 @@ jobs:
     # 因為您的金鑰跟ID已經寫在 swer.py 裡面了，所以這裡不需要 env 設定
     - name: Run script
       run: python swer.py
-
