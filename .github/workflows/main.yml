@@ -1,0 +1,38 @@
+name: Daily ETF Watcher
+
+on:
+  schedule:
+    # 設定排程時間：'0 12 * * *' 是 UTC 時間的中午 12:00
+    # 換算成台灣時間 (UTC+8) 就是您要的晚上 8:00
+    - cron: '0 12 * * *'
+  workflow_dispatch: # 這一行是為了讓您可以手動測試
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # 使用虛擬機執行
+
+    steps:
+    # 步驟 1: 下載您的程式碼
+    - uses: actions/checkout@v3
+
+    # 步驟 2: 設定 Python 環境
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+
+    # 步驟 3: 安裝需要的套件 (pandas)
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas
+
+    # 步驟 4: 執行您的 Python 程式
+    - name: Run script
+      env:
+        # 這裡會把您剛剛設定的 Secrets 傳給程式
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      # 執行 etf_bot.py 這個檔案
+      run: python etf_bot.py
+5.  完成後，點擊右上角的 **`Commit changes`** 按鈕。
