@@ -45,17 +45,47 @@ def get_etf_data_and_notify():
             # 🔸 排除變動為 0 的項目
             df_change = df_change[df_change['持股變動'] != 0]
 
-            # 🔸 取前 5 大買超與賣超（但只顯示實際有變動的檔數）
+            # 🔸 取前 5 大買超與賣超
             buys = df_change[df_change['持股變動'] > 0].sort_values('持股變動', ascending=False).head(5)
             sells = df_change[df_change['持股變動'] < 0].sort_values('持股變動', ascending=True).head(5)
 
-            msg = f"📅 {latest}\n\n📈 *買超 Top 5*\n"
+            # 🔸 ---【這裡是新增的邏輯】--- 🔸
+            # 1. 取得最新一天和前一天的股票代號集合
+            latest_stocks = set(df[df['日期'] == latest]['標的代號'])
+            previous_stocks = set(df[df['日期'] == previous]['標的代號'])
+
+            # 2. 找出只存在於最新一天持股中的股票 (新加入的)
+            new_stock_codes = latest_stocks - previous_stocks
+
+            # 3. 取得這些新股票在最新一天的詳細資料
+            if new_stock_codes:
+                new_holdings_df = df[(df['日期'] == latest) & (df['標的代號'].isin(new_stock_codes))].sort_values('持有數', ascending=False)
+            else:
+                new_holdings_df = pd.DataFrame()
+            # 🔸 ---【新增邏輯結束】--- 🔸
+
+
+            # ---【修改訊息格式以包含新增持股】---
+            msg = f"📅 {latest}  `{stockStr}`\n\n"
+
+            # 新增持股區塊
+            msg += "🆕 \n"
+            if not new_holdings_df.empty:
+                for _, r in new_holdings_df.iterrows():
+                    # 格式為：代號 名稱 持有數
+                    msg += f"`{r['標的代號']:<6} {r['標的名稱']:<5} {int(r['持有數']):,}`\n"
+            else:
+                msg += "`(無)`\n"
+
+            # 買超區塊
+            msg += "\n📈 *買超 Top 5*\n"
             if not buys.empty:
                 for _, r in buys.iterrows():
                     msg += f"`{r['標的代號']:<6} {r['標的名稱']:<5} +{int(r['持股變動']):,}`\n"
             else:
                 msg += "`(無)`\n"
 
+            # 賣超區塊
             msg += "\n📉 *賣超 Top 5*\n"
             if not sells.empty:
                 for _, r in sells.iterrows():
