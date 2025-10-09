@@ -1,30 +1,25 @@
 import json
-import pandas as pd
-import requests
 import ssl
 import urllib.request
+import pandas as pd
+import urllib.parse
 
 def send_telegram_message(bot_token, chat_id, message):
-    """發送訊息到 Telegram（支援中文）"""
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
+    """發送訊息到 Telegram"""
+    message_encoded = urllib.parse.quote_plus(message)
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message_encoded}&parse_mode=Markdown"
+    context = ssl._create_unverified_context()
     try:
-        r = requests.post(url, data=payload)
-        if r.status_code == 200:
-            print("✅ Telegram 訊息已發送")
-        else:
-            print(f"❌ 發送失敗, 狀態碼: {r.status_code}")
+        urllib.request.urlopen(url, context=context)
+        print("✅ Telegram 訊息已發送")
     except Exception as e:
         print(f"❌ 發送失敗: {e}")
 
 def get_etf_data_and_notify():
     TELEGRAM_BOT_TOKEN = "7791748692:AAELpJ4d1aMKbvL8NTY0Wsm7Imh1pZKY-hM"
     TELEGRAM_CHAT_ID = "-4845859627"
-    stockStr = "00982A"  # ETF 代號
+    # 您可以修改 stockStr 來查詢不同的 ETF
+    stockStr = "00982A" 
     lookday = "10"
 
     url = f"https://www.cmoney.tw/api/cm/MobileService/ashx/GetDtnoData.ashx?action=getdtnodata&DtNo=59449513&ParamStr=AssignID%3D{stockStr}%3BMTPeriod%3D0%3BDTMode%3D0%3BDTRange%3D{lookday}%3BDTOrder%3D1%3BMajorTable%3DM722%3B&FilterNo=0"
@@ -37,6 +32,10 @@ def get_etf_data_and_notify():
         df = pd.DataFrame(data["Data"], columns=data["Title"])
         df["持有數"] = pd.to_numeric(df["持有數"], errors='coerce').astype("Int64")
         df["日期"] = pd.to_datetime(df["日期"], format='%Y%m%d').dt.date
+        
+        # ---【就是加上這一行！過濾掉非數字的代號】---
+        df = df[df['標的代號'].str.isnumeric()]
+        
         df.sort_values(by=["標的代號", "日期"], inplace=True)
 
         dates = sorted(df['日期'].unique(), reverse=True)
@@ -48,24 +47,50 @@ def get_etf_data_and_notify():
             df_recent['持股變動'] = df_recent.groupby('標的代號')['持有數'].diff()
             df_change = df_recent[df_recent['日期'] == latest].dropna(subset=['持股變動'])
 
-            # 🔹 排除變動為 0 的項目
+            # 🔸 排除變動為 0 的項目
             df_change = df_change[df_change['持股變動'] != 0]
 
-            # 🔹 只保留標的代號是 3~4 碼數字（排除英文/會計科目）
-            df_change = df_change[df_change['標的代號'].str.match(r'^\d{3,4}$')]
-
-            # 🔹 取前 5 大買超與賣超
+            # 🔸 取前 5 大買超與賣超
             buys = df_change[df_change['持股變動'] > 0].sort_values('持股變動', ascending=False).head(5)
             sells = df_change[df_change['持股變動'] < 0].sort_values('持股變動', ascending=True).head(5)
 
-            # 🔹 組 Telegram 訊息
-            msg = f"📅 {latest}\n\n📈 *買超 Top 5*\n"
-            if not buys.empty:
-                for _, r in buys.iterrows():
-                    msg += f"`{r['標的代號']:<6} {r['標的名稱']:<5} +{int(r['持股變動']):,}`\n"
+            # 🔸 ---【這裡是新增的邏輯】--- 🔸
+            # 1. 取得最新一天和前一天的股票代號集合
+            latest_stocks = set(df[df['日期'] == latest]['標的代號'])
+            previous_stocks = set(df[df['日期'] == previous]['標的代號'])
+
+            # 2. 找出只存在於最新一天持股中的股票 (新加入的)
+            new_stock_codes = latest_stocks - previous_stocks
+
+            # 3. 取得這些新股票在最新一天的詳細資料
+            if new_stock_codes:
+                new_holdings_df = df[(df['日期'] == latest) & (df['標的代號'].isin(new_stock_codes))].sort_values('持有數', ascending=False)
+            else:
+                new_holdings_df = pd.DataFrame()
+            # 🔸 ---【新增邏輯結束】--- 🔸
+
+
+            # ---【修改訊息格式以包含新增持股】---
+            msg = f"📅 {latest}  `{stockStr}`\n\n"
+
+            # 新增持股區塊
+            msg += "🆕 *新增持股*\n"
+            if not new_holdings_df.empty:
+                for _, r in new_holdings_df.iterrows():
+                    # 格式為：代號 名稱 持有數
+                    msg += f"`{r['標的代號']:<6} {r['標的名稱']:<5} {int(r['持有數']):,}`\n"
             else:
                 msg += "`(無)`\n"
 
+            # 買超區塊
+            msg += "\n📈 *買超 Top 5*\n"
+            if not buys.empty:
+                for _, r in buys.iterrows():
+                    msg += f"`{r['標ের代號']:<6} {r['標的名稱']:<5} +{int(r['持股變動']):,}`\n"
+            else:
+                msg += "`(無)`\n"
+
+            # 賣超區塊
             msg += "\n📉 *賣超 Top 5*\n"
             if not sells.empty:
                 for _, r in sells.iterrows():
@@ -80,4 +105,3 @@ def get_etf_data_and_notify():
 
 if __name__ == "__main__":
     get_etf_data_and_notify()
-
